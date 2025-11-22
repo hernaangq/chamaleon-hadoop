@@ -53,9 +53,13 @@ launch_vm() {
             -c limits.memory=$ram \
             --device root,size=$disk
         
-        # Add network device connected to lxdbr0
+        # Remove default network device and add our own connected to lxdbr0
         echo "Configuring network for $name..."
+        sudo lxc config device remove $name eth0 2>/dev/null || true
         sudo lxc config device add $name eth0 nic nictype=bridged parent=lxdbr0
+        
+        # Restart to apply network changes
+        sudo lxc restart $name
         
         # Wait for networking to come up before we assume it's ready
         echo "Waiting for $name to boot and get IP..."
