@@ -53,9 +53,13 @@ launch_vm() {
             -c limits.memory=$ram \
             --device root,size=$disk
         
+        # Add network device connected to lxdbr0
+        echo "Configuring network for $name..."
+        sudo lxc config device add $name eth0 nic nictype=bridged parent=lxdbr0
+        
         # Wait for networking to come up before we assume it's ready
-        echo "Waiting for $name to boot..."
-        sleep 10
+        echo "Waiting for $name to boot and get IP..."
+        sleep 15
     fi
 }
 
