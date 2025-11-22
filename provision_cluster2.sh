@@ -54,6 +54,26 @@ setup_base_image() {
     fi
 }
 
+ensure_network() {
+    echo ">>> Checking default network..."
+    
+    # Check if default network exists
+    if ! sudo virsh net-list --all | grep -q "default"; then
+        echo "  - Creating default network..."
+        sudo virsh net-define /usr/share/libvirt/networks/default.xml
+    fi
+    
+    # Start network if not active
+    if ! sudo virsh net-list | grep -q "default.*active"; then
+        echo "  - Starting default network..."
+        sudo virsh net-start default
+    fi
+    
+    # Set to autostart
+    sudo virsh net-autostart default > /dev/null 2>&1
+    echo "  - Default network is active."
+}
+
 cleanup_vm() {
     local name=$1
     echo "Checking for existing VM: $name..."
@@ -124,6 +144,8 @@ if ! command -v virsh &> /dev/null; then
 fi
 
 setup_base_image
+
+ensure_network
 
 echo "=================================================="
 echo "      CS553 HW5 - KVM Cluster Manager"
