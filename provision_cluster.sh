@@ -53,15 +53,24 @@ launch_vm() {
             -c limits.memory=$ram \
             --device root,size=$disk
         
+        # Wait for VM to fully start before reconfiguring network
+        echo "Waiting for $name to start..."
+        sleep 20
+        
+        # Stop the VM to safely reconfigure network
+        echo "Stopping $name to reconfigure network..."
+        sudo lxc stop $name
+        
         # Remove default network device and add our own connected to lxdbr0
         echo "Configuring network for $name..."
         sudo lxc config device remove $name eth0 2>/dev/null || true
         sudo lxc config device add $name eth0 nic nictype=bridged parent=lxdbr0
         
-        # Restart to apply network changes
-        sudo lxc restart $name
+        # Start the VM with new network config
+        echo "Starting $name with new network configuration..."
+        sudo lxc start $name
         
-        # Wait for networking to come up before we assume it's ready
+        # Wait for networking to come up
         echo "Waiting for $name to boot and get IP..."
         sleep 15
     fi
