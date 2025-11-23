@@ -264,8 +264,6 @@ setupPasswordlessSSH(){
 
 
 
-
-
 # ---------- CONFIGURATIONS ----------
 run_config() {
 
@@ -275,7 +273,8 @@ run_config() {
 
         1)
             # 1 large + 1 tiny
-            launch_instance "hadoop-slave-1" large
+            launch_in
+            stance "hadoop-slave-1" large
             launch_instance "hadoop-slave-2" tiny
             NODES+=("hadoop-slave-1")
             NODES+=("hadoop-slave-2")
