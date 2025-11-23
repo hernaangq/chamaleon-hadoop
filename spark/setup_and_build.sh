@@ -1,9 +1,17 @@
 #!/bin/bash
 
-# 1. Install Maven (Required to build Java code)
-echo "Installing Maven..."
+# 1. Install Maven and Java (Required to build and run Java code)
+echo "Installing Maven and Java 11..."
 sudo apt-get update
-sudo apt-get install -y maven
+sudo apt-get install -y maven openjdk-11-jdk
+
+# Set JAVA_HOME
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export PATH=$JAVA_HOME/bin:$PATH
+
+# Verify Java installation
+echo "Java version:"
+java -version
 
 # 2. Install Spark if not present
 if [ ! -d "$HOME/spark" ]; then
@@ -39,3 +47,4 @@ mvn clean package
 echo "Build Complete!"
 echo "Your JAR is located at: target/spark-vault-1.0-SNAPSHOT.jar"
 echo "Spark is installed at: ~/spark"
+echo "Java is installed at: $JAVA_HOME"
