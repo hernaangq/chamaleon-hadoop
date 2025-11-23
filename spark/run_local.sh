@@ -1,5 +1,9 @@
 #!/bin/bash
 # run_local.sh
+# FORCE the paths so it never fails
+export SPARK_HOME=~/spark
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export PATH=$PATH:$SPARK_HOME/bin
 
 # 1. compile the code (if you haven't yet)
 if [ ! -f "target/spark-vault-1.0-SNAPSHOT.jar" ]; then
