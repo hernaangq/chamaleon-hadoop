@@ -14,7 +14,11 @@ if [ -f "SparkVault.java" ]; then
     mv SparkVault.java src/main/java/edu/iit/cs553/
 fi
 
-# 4. Build the JAR
+# 4. Fix the output format class reference
+echo "Patching SparkVault.java..."
+sed -i 's/org.apache.hadoop.mapred.lib.MultipleOutputs.class/org.apache.hadoop.mapred.SequenceFileOutputFormat.class/' src/main/java/edu/iit/cs553/SparkVault.java
+
+# 5. Build the JAR
 echo "Building SparkVault JAR..."
 mvn clean package
 
