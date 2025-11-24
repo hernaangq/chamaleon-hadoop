@@ -347,14 +347,22 @@ export YARN_RESOURCEMANAGER_USER=hadoop
 export YARN_NODEMANAGER_USER=hadoop
 "
 
-    # Apply to Host
+    # Apply to Host .bashrc
     if ! grep -q "HADOOP_HOME" /home/hadoop/.bashrc; then
         echo "$ENV_BLOCK" >> /home/hadoop/.bashrc
     fi
 
+    # --- FIX: Hardcode JAVA_HOME in hadoop-env.sh on Host ---
+    echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> /usr/local/hadoop/etc/hadoop/hadoop-env.sh
+    # --------------------------------------------------------
+
     # Apply to Slaves
     for i in "${SLAVES[@]}"; do
         lxc exec $i -- bash -c "if ! grep -q 'HADOOP_HOME' /home/hadoop/.bashrc; then echo \"$ENV_BLOCK\" >> /home/hadoop/.bashrc; fi"
+        
+        # --- FIX: Hardcode JAVA_HOME in hadoop-env.sh on Slaves ---
+        lxc exec $i -- bash -c "echo 'export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64' >> /usr/local/hadoop/etc/hadoop/hadoop-env.sh"
+        # ----------------------------------------------------------
     done
 }
 
