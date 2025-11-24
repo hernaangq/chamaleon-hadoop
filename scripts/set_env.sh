@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #TODO: validar java home en el server
-JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
+JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 HADOOP_HOME=/usr/local/hadoop
 HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop
 HADOOP_MAPRED_HOME=\$HADOOP_HOME

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64" hadoop
+sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
 sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
 sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
 sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop

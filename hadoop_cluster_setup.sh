@@ -50,9 +50,11 @@ launch_instance() {
 
     # Launch
     lxc launch ubuntu:$UBUNTU_VERSION "$NAME" -c limits.cpu="$CPU" -c limits.memory="$RAM"
+    #sudo lxc-create -t ubuntu:$UBUNTU_VERSION -n "$NAME" -c limits.cpu="$CPU" -c limits.memory="$RAM"
+    #lxc-start -d -n "$NAME"
 
     # Resize root disk
-    lxc config device set "$NAME" root size "$DISK"
+    #lxc config device set "$NAME" root size "$DISK"
 }
 
 # ---------- UPDATE VMS ----------
@@ -66,7 +68,7 @@ installUpdates() {
             apt-get update &&
             apt-get upgrade -y &&
             apt-get install -y \
-                openjdk-17-jdk \
+                openjdk-8-jdk \
                 apt-transport-https \
                 ca-certificates \
                 build-essential \
@@ -88,7 +90,7 @@ getHostInfo() {
     SLAVE_IPS=()
 
     for host in "${HOSTS[@]}"; do
-        IP=$(lxc list "$host" -c 4 --format csv)   # column 4 = IPv4
+        IP=$(lxc list "$host" -c 4 --format csv | cut -d ' ' -f 1)   # column 4 = IPv4
         if [[ "$host" == "hadoop-master" ]]; then
             export HADOOP_MASTER_IP="$IP"
         else
@@ -96,6 +98,7 @@ getHostInfo() {
         fi
     done
 
+    export HADOOP_MASTER_IP=$(hostname -I | awk '{print $1}')
     # Export each slave IP individually (optional)
     for i in "${!SLAVE_IPS[@]}"; do
         export HADOOP_SLAVE$((i+1))_IP="${SLAVE_IPS[$i]}"
@@ -121,7 +124,7 @@ generateHostsFile() {
 
     # For each slave that exists
     for slave in "${SLAVES[@]}"; do
-        SLAVE_IP=$(lxc list "$slave" -c 4 --format csv)
+        SLAVE_IP=$(lxc list "$slave" -c 4 --format csv | cut -d ' ' -f 1)
         echo "$SLAVE_IP $slave" >> "$OUTPUT"
     done
 }
@@ -141,7 +144,7 @@ generateSSHPrimingScript() {
         echo "sudo -u hadoop ssh -o 'StrictHostKeyChecking no' -o ConnectTimeout=2 $MASTER_IP 'echo ok' >/dev/null 2>&1"
 
         for slave in "${SLAVES[@]}"; do
-            SLAVE_IP=$(lxc list "$slave" -c 4 --format csv)
+            SLAVE_IP=$(lxc list "$slave" -c 4 --format csv | cut -d ' ' -f 1)
             echo "sudo -u hadoop ssh -o 'StrictHostKeyChecking no' -o ConnectTimeout=2 $SLAVE_IP 'echo ok' >/dev/null 2>&1"
         done
     } > "$OUTPUT"
@@ -172,13 +175,18 @@ getHadoop(){
 
     SLAVES=("$@")   # all container names passed into the function
 
-    wget  http://apache.claz.org/hadoop/common/hadoop-2.7.3/hadoop-2.7.3.tar.gz -O /tmp/apps/hadoop-2.7.3.tar.gz
+    mkdir -p /tmp/apps/ && wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz -O /tmp/apps/hadoop-3.3.6.tar.gz
     sleep 2
 
+    #Push to own fs (baremetal)
+    cp /tmp/apps/hadoop-3.3.6.tar.gz /usr/local/hadoop-3.3.6.tar.gz
+    tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+    mv /usr/local/hadoop-3.3.6.tar.gz /usr/local/hadoop
+    #Push to containers
     for i in "${SLAVES[@]}"; do
-        lxc file push /tmp/apps/hadoop-2.7.3.tar.gz $i/usr/local/hadoop-2.7.3.tar.gz
-        lxc exec $i -- tar -xf /usr/local/hadoop-2.7.3.tar.gz -C /usr/local/
-        lxc exec $i -- mv /usr/local/hadoop-2.7.3 /usr/local/hadoop
+        lxc file push /tmp/apps/hadoop-3.3.6.tar.gz $i/usr/local/hadoop-3.3.6.tar.gz
+        lxc exec $i -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+        lxc exec $i -- mv /usr/local/hadoop-3.3.6.tar.gz /usr/local/hadoop
     done
 }
 
@@ -195,9 +203,6 @@ moveScripts(){
     cp ./scripts/start_hadoop.sh /root/start_hadoop.sh
     cp ./scripts/update_java_home.sh /root/update_java_home.sh
 
-    
-
-
     for i in "${SLAVES[@]}"; do
         lxc file push ./scripts/hosts $i/etc/hosts
         lxc file push ./scripts/setup_user.sh $i/root/setup-user.sh
@@ -205,7 +210,6 @@ moveScripts(){
         lxc file push ./scripts/source.sh $i/root/source.sh
         lxc file push ./scripts/ssh.sh $i/root/ssh.sh
         lxc file push ./scripts/update_java_home.sh $i/root/update_java_home.sh
-
     done
 
 }
@@ -215,20 +219,20 @@ moveHadoopConfs(){
 
     SLAVES=("$@")   # all container names passed into the function
     
-    cp ./conf/masters /usr/local/hadoop/etc/hadoop/masters
-    cp ./conf/slaves /usr/local/hadoop/etc/hadoop/slaves
-    cp ./conf/core-site.xml /usr/local/hadoop/etc/hadoop/core-site.xml
-    cp ./conf/hdfs-site.xml /usr/local/hadoop/etc/hadoop/hdfs-site.xml
-    cp ./conf/mapred-site.xml /usr/local/hadoop/etc/hadoop/mapred-site.xml
-    cp ./conf/yarn-site.xml /usr/local/hadoop/etc/hadoop/yarn-site.xml
+    cp ./conf/masters /usr/local/hadoop-3.3.6/etc/hadoop/masters
+    cp ./conf/slaves /usr/local/hadoop-3.3.6/etc/hadoop/slaves
+    cp ./conf/core-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/core-site.xml
+    cp ./conf/hdfs-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/hdfs-site.xml
+    cp ./conf/mapred-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/mapred-site.xml
+    cp ./conf/yarn-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/yarn-site.xml
 
     for i in "${SLAVES[@]}"; do
-        lxc file push ./conf/masters $i/usr/local/hadoop/etc/hadoop/masters
-        lxc file push ./conf/slaves $i/usr/local/hadoop/etc/hadoop/slaves
-        lxc file push ./conf/core-site.xml $i/usr/local/hadoop/etc/hadoop/core-site.xml
-        lxc file push ./conf/hdfs-site.xml $i/usr/local/hadoop/etc/hadoop/hdfs-site.xml
-        lxc file push ./conf/mapred-site.xml $i/usr/local/hadoop/etc/hadoop/mapred-site.xml
-        lxc file push ./conf/yarn-site.xml $i/usr/local/hadoop/etc/hadoop/yarn-site.xml
+        lxc file push ./conf/masters $i/usr/local/hadoop-3.3.6/etc/hadoop/masters
+        lxc file push ./conf/slaves $i/usr/local/hadoop-3.3.6/etc/hadoop/slaves
+        lxc file push ./conf/core-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/core-site.xml
+        lxc file push ./conf/hdfs-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/hdfs-site.xml
+        lxc file push ./conf/mapred-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/mapred-site.xml
+        lxc file push ./conf/yarn-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/yarn-site.xml
     done
 
 }
@@ -236,6 +240,9 @@ moveHadoopConfs(){
 configureSSH(){
 
     SLAVES=("$@")   # all container names passed into the function
+
+    sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+    /etc/init.d/ssh restart
 
     for i in "${SLAVES[@]}"; do
         lxc exec $i -- sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
@@ -247,21 +254,89 @@ configureSSH(){
 setupUsers(){
     SLAVES=("$@")   # all container names passed into the function
 
+    chmod +x ./scripts/*.sh
+    scripts/setup_user.sh
+
     for i in "${SLAVES[@]}"; do
         lxc exec $i -- bash /root/setup-user.sh
     done
 }
 
 setupPasswordlessSSH(){
+
+    mkdir -p /tmp/ssh/
+
     SLAVES=("$@")   # all container names passed into the function
+
+    > /tmp/authorized_keys
+
+    cat /home/hadoop/.ssh/id_rsa.pub >> /tmp/authorized_keys
 
     for i in "${SLAVES[@]}"; do
         lxc file pull $i/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa1.pub
-        cat /tmp/ssh/id_rsa1.pub /tmp/ssh/id_rsa2.pub /tmp/ssh/id_rsa3.pub > /tmp/authorized_keys
+        cat /tmp/ssh/id_rsa1.pub >> /tmp/authorized_keys
         lxc file push /tmp/authorized_keys $i/home/hadoop/.ssh/authorized_keys
     done
 }
 
+ensureSSH(){
+    SLAVES=("$@")   # all container names passed into the function
+
+    scripts/ssh.sh
+
+    for i in "${SLAVES[@]}"; do
+        lxc exec $i -- bash /root/ssh.sh
+    done
+}
+
+moveInitialScript(){
+    cp ./scripts/initial_setup.sh /home/hadoop/initial_setup.sh
+    chown hadoop:hadoop /home/hadoop/initial_setup.sh
+}
+
+executeScripts(){
+
+    scripts/source.sh
+    chown -R hadoop:hadoop /usr/local/hadoop
+
+    SLAVES=("$@")   # all container names passed into the function
+
+    for i in "${SLAVES[@]}"; do
+        lxc exec $i -- bash /root/source.sh
+        lxc exec $i -- chown -R hadoop:hadoop /usr/local/hadoop
+    done
+
+}
+
+updateJavaHome(){
+
+    scripts/update_java_home.sh
+
+    SLAVES=("$@")   # all container names passed into the function
+
+    for i in "${SLAVES[@]}"; do
+        lxc exec $i -- bash /root/update_java_home.sh
+    done
+}
+
+startHadoop(){
+    JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+    scripts/start_hadoop.sh
+}
+
+printInstructions(){
+echo "Deployment Done"
+echo "---------------"
+echo ""
+echo "1. Access Master:"
+echo " $ lxc exec hadoop-master bash"
+echo ""
+echo "2. Switch user to hadoop:"
+echo " $ su hadoop"
+echo ""
+echo "With the inital login namenode will be formatted and hadoop"
+echo "daemons will be started."
+}
 
 
 # ---------- CONFIGURATIONS ----------
@@ -273,9 +348,8 @@ run_config() {
 
         1)
             # 1 large + 1 tiny
-            launch_in
-            stance "hadoop-slave-1" large
-            launch_instance "hadoop-slave-2" tiny
+            #launch_instance "hadoop-slave-1" large
+            #launch_instance "hadoop-slave-2" tiny
             NODES+=("hadoop-slave-1")
             NODES+=("hadoop-slave-2")
             ;;
@@ -307,7 +381,7 @@ run_config() {
 
 # ---------- RUN ----------
 run_config
-installUpdates "${NODES[@]}"
+#installUpdates "${NODES[@]}"
 getHostInfo "${NODES[@]}"
 generateHostsFile "${NODES[@]}"
 generateSSHPrimingScript "${NODES[@]}"
@@ -317,4 +391,9 @@ moveScripts "${NODES[@]}"
 moveHadoopConfs "${NODES[@]}"
 configureSSH "${NODES[@]}"
 setupUsers "${NODES[@]}"
-setupPasswordlessSSH
+setupPasswordlessSSH "${NODES[@]}"
+ensureSSH "${NODES[@]}"
+moveInitialScript
+executeScripts "${NODES[@]}"
+updateJavaHome "${NODES[@]}"
+startHadoop
