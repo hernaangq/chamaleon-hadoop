@@ -315,30 +315,15 @@ executeScripts(){
     
     # Execute source.sh on all slaves
     for i in "${SLAVES[@]}"; do
-        lxc exec $i -- bash -c "$(cat ./scripts/source.sh)"
-    done
-    
-    # Execute other scripts on master and slaves
-    for i in "${SLAVES[@]}"; do
-        lxc exec $i -- bash /tmp/scripts/prime_known_hosts.sh
-    done
-    bash ./scripts/start_hadoop.sh
-}
-
-updateJavaHome(){
-
-    SLAVES=("$@")
-
-    sed -i "/export JAVA_HOME=/c\export JAVA_HOME=\$(readlink -f /usr/bin/java | sed 's:/bin/java::')" /usr/local/hadoop/etc/hadoop/hadoop-env.sh
-    
-    for i in "${SLAVES[@]}"; do
-        lxc exec $i -- sed -i "/export JAVA_HOME=/c\export JAVA_HOME=\$(readlink -f /usr/bin/java | sed 's:/bin/java::')" /usr/local/hadoop/etc/hadoop/hadoop-env.sh
+        lxc exec $i -- bash /root/source.sh
     done
 }
 
 startHadoop(){
-    JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-    scripts/start_hadoop.sh
+    # Run as hadoop user
+    su - hadoop -c "hdfs namenode -format -force"
+    su - hadoop -c "start-dfs.sh"
+    su - hadoop -c "start-yarn.sh"
 }
 
 printInstructions(){
