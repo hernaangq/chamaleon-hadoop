@@ -179,11 +179,14 @@ getHadoop(){
     sleep 2
 
     #Push to own fs (baremetal)
-    sudo cp /tmp/apps/hadoop-3.3.6.tar.gz /usr/local/hadoop-3.3.6.tar.gz
-    sudo tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
-    sudo mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+    rm -rf /usr/local/hadoop /usr/local/hadoop-3.3.6 /usr/local/hadoop-3.3.6.tar.gz
+    cp /tmp/apps/hadoop-3.3.6.tar.gz /usr/local/hadoop-3.3.6.tar.gz
+    tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+    mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+    
     #Push to containers
     for i in "${SLAVES[@]}"; do
+        lxc exec $i -- rm -rf /usr/local/hadoop /usr/local/hadoop-3.3.6 /usr/local/hadoop-3.3.6.tar.gz
         lxc file push /tmp/apps/hadoop-3.3.6.tar.gz $i/usr/local/hadoop-3.3.6.tar.gz
         lxc exec $i -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
         lxc exec $i -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
