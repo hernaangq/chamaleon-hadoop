@@ -179,14 +179,14 @@ getHadoop(){
     sleep 2
 
     #Push to own fs (baremetal)
-    cp /tmp/apps/hadoop-3.3.6.tar.gz /usr/local/hadoop-3.3.6.tar.gz
-    tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
-    mv /usr/local/hadoop-3.3.6.tar.gz /usr/local/hadoop
+    sudo cp /tmp/apps/hadoop-3.3.6.tar.gz /usr/local/hadoop-3.3.6.tar.gz
+    sudo tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+    sudo mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
     #Push to containers
     for i in "${SLAVES[@]}"; do
         lxc file push /tmp/apps/hadoop-3.3.6.tar.gz $i/usr/local/hadoop-3.3.6.tar.gz
         lxc exec $i -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
-        lxc exec $i -- mv /usr/local/hadoop-3.3.6.tar.gz /usr/local/hadoop
+        lxc exec $i -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
     done
 }
 
@@ -219,20 +219,20 @@ moveHadoopConfs(){
 
     SLAVES=("$@")   # all container names passed into the function
     
-    cp ./conf/masters /usr/local/hadoop-3.3.6/etc/hadoop/masters
-    cp ./conf/slaves /usr/local/hadoop-3.3.6/etc/hadoop/slaves
-    cp ./conf/core-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/core-site.xml
-    cp ./conf/hdfs-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/hdfs-site.xml
-    cp ./conf/mapred-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/mapred-site.xml
-    cp ./conf/yarn-site.xml /usr/local/hadoop-3.3.6/etc/hadoop/yarn-site.xml
+    cp ./conf/masters /usr/local/hadoop/etc/hadoop/masters
+    cp ./conf/slaves /usr/local/hadoop/etc/hadoop/slaves
+    cp ./conf/core-site.xml /usr/local/hadoop/etc/hadoop/core-site.xml
+    cp ./conf/hdfs-site.xml /usr/local/hadoop/etc/hadoop/hdfs-site.xml
+    cp ./conf/mapred-site.xml /usr/local/hadoop/etc/hadoop/mapred-site.xml
+    cp ./conf/yarn-site.xml /usr/local/hadoop/etc/hadoop/yarn-site.xml
 
     for i in "${SLAVES[@]}"; do
-        lxc file push ./conf/masters $i/usr/local/hadoop-3.3.6/etc/hadoop/masters
-        lxc file push ./conf/slaves $i/usr/local/hadoop-3.3.6/etc/hadoop/slaves
-        lxc file push ./conf/core-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/core-site.xml
-        lxc file push ./conf/hdfs-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/hdfs-site.xml
-        lxc file push ./conf/mapred-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/mapred-site.xml
-        lxc file push ./conf/yarn-site.xml $i/usr/local/hadoop-3.3.6/etc/hadoop/yarn-site.xml
+        lxc file push ./conf/masters $i/usr/local/hadoop/etc/hadoop/masters
+        lxc file push ./conf/slaves $i/usr/local/hadoop/etc/hadoop/slaves
+        lxc file push ./conf/core-site.xml $i/usr/local/hadoop/etc/hadoop/core-site.xml
+        lxc file push ./conf/hdfs-site.xml $i/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+        lxc file push ./conf/mapred-site.xml $i/usr/local/hadoop/etc/hadoop/mapred-site.xml
+        lxc file push ./conf/yarn-site.xml $i/usr/local/hadoop/etc/hadoop/yarn-site.xml
     done
 
 }
