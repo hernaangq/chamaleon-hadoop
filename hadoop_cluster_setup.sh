@@ -308,16 +308,21 @@ moveInitialScript(){
 
 executeScripts(){
 
-    scripts/source.sh
-    chown -R hadoop:hadoop /usr/local/hadoop
-
-    SLAVES=("$@")   # all container names passed into the function
-
+    SLAVES=("$@")
+    
+    # Execute source.sh on master
+    bash ./scripts/source.sh
+    
+    # Execute source.sh on all slaves
     for i in "${SLAVES[@]}"; do
-        lxc exec $i -- bash /root/source.sh
-        lxc exec $i -- chown -R hadoop:hadoop /usr/local/hadoop
+        lxc exec $i -- bash -c "$(cat ./scripts/source.sh)"
     done
-
+    
+    # Execute other scripts on master and slaves
+    for i in "${SLAVES[@]}"; do
+        lxc exec $i -- bash /tmp/scripts/prime_known_hosts.sh
+    done
+    bash ./scripts/start_hadoop.sh
 }
 
 updateJavaHome(){
