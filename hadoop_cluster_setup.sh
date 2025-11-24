@@ -480,6 +480,8 @@ executeScripts(){
 startHadoop(){
     # Run as hadoop user
     JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 
+
+    chmod +x /root/start-hadoop.sh
     /root/start-hadoop.sh
     #su - hadoop -c "hdfs namenode -format -force"
     #su - hadoop -c "start-dfs.sh"
