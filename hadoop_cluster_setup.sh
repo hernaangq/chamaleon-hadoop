@@ -268,7 +268,9 @@ setupPasswordlessSSH(){
 
     SLAVES=("$@")   # all container names passed into the function
 
-    > /tmp/authorized_keys
+    rm -f /tmp/authorized_keys
+    touch /tmp/authorized_keys
+    chmod 666 /tmp/authorized_keys
 
     cat /home/hadoop/.ssh/id_rsa.pub >> /tmp/authorized_keys
 
@@ -277,6 +279,9 @@ setupPasswordlessSSH(){
         cat /tmp/ssh/id_rsa1.pub >> /tmp/authorized_keys
         lxc file push /tmp/authorized_keys $i/home/hadoop/.ssh/authorized_keys
     done
+
+    cp /tmp/authorized_keys /home/hadoop/.ssh/authorized_keys
+    chown hadoop:hadoop /home/hadoop/.ssh/authorized_keys
 }
 
 ensureSSH(){
