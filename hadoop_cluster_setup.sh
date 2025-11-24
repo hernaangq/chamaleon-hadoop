@@ -281,7 +281,7 @@ setupPasswordlessSSH(){
 
     rm -f /tmp/authorized_keys
     touch /tmp/authorized_keys
-    chmod 666 /tmp/authorized_keys
+    chmod 600 /tmp/authorized_keys # Changed from 666 to 600
 
     cat /home/hadoop/.ssh/id_rsa.pub >> /tmp/authorized_keys
 
@@ -293,6 +293,7 @@ setupPasswordlessSSH(){
 
     cp /tmp/authorized_keys /home/hadoop/.ssh/authorized_keys
     chown hadoop:hadoop /home/hadoop/.ssh/authorized_keys
+    chmod 600 /home/hadoop/.ssh/authorized_keys # Ensure strict permissions
 }
 
 ensureSSH(){
@@ -354,8 +355,8 @@ run_config() {
 
         1)
             # 1 large + 1 tiny
-            #launch_instance "hadoop-slave-1" large
-            #launch_instance "hadoop-slave-2" tiny
+            launch_instance "hadoop-slave-1" large
+            launch_instance "hadoop-slave-2" tiny
             NODES+=("hadoop-slave-1")
             NODES+=("hadoop-slave-2")
             ;;
