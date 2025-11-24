@@ -9,6 +9,6 @@ sudo apt-get install apt-utils -y
 sudo apt-get install ssh -y
 
 sudo apt-get install lxc -y
-#sudo lxd init --auto
+sudo lxd init --auto
 sudo firewall-cmd --zone=trusted --add-interface=lxdbr0 --permanent
 sudo firewall-cmd --reload
