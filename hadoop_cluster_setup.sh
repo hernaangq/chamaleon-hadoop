@@ -44,17 +44,18 @@ launch_instance() {
     NAME="$1"
     TYPE="$2"
 
+    # Check if instance already exists
+    if lxc info "$NAME" >/dev/null 2>&1; then
+        echo "Instance $NAME already exists. Skipping launch..."
+        return
+    fi
+
     define_limits "$TYPE"
 
     echo "Launching $NAME ($TYPE) with $CPU CPUs, $RAM RAM, $DISK disk..."
 
     # Launch
     lxc launch ubuntu:$UBUNTU_VERSION "$NAME" -c limits.cpu="$CPU" -c limits.memory="$RAM"
-    #sudo lxc-create -t ubuntu:$UBUNTU_VERSION -n "$NAME" -c limits.cpu="$CPU" -c limits.memory="$RAM"
-    #lxc-start -d -n "$NAME"
-
-    # Resize root disk
-    #lxc config device set "$NAME" root size "$DISK"
 }
 
 # ---------- UPDATE VMS ----------
@@ -175,20 +176,22 @@ getHadoop(){
 
     SLAVES=("$@")
 
-    mkdir -p /tmp/apps/ && wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz -O /tmp/apps/hadoop-3.3.6.tar.gz
+    if [ ! -f /tmp/apps/hadoop-3.3.6.tar.gz ]; then
+        mkdir -p /tmp/apps/ && wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz -O /tmp/apps/hadoop-3.3.6.tar.gz
+    fi
     sleep 2
 
     #Push to own fs (baremetal)
-    rm -rf /usr/local/hadoop /usr/local/hadoop-3.3.6 /usr/local/hadoop-3.3.6.tar.gz
-    cp /tmp/apps/hadoop-3.3.6.tar.gz /usr/local/hadoop-3.3.6.tar.gz
-    tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+    rm -rf /usr/local/hadoop /usr/local/hadoop-3.3.6
+    # Only extract if not already there to save time, or force overwrite
+    tar -xf /tmp/apps/hadoop-3.3.6.tar.gz -C /usr/local/
     mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
     mkdir -p /usr/local/hadoop/logs
     chown -R hadoop:hadoop /usr/local/hadoop
     
     #Push to containers
     for i in "${SLAVES[@]}"; do
-        lxc exec $i -- rm -rf /usr/local/hadoop /usr/local/hadoop-3.3.6 /usr/local/hadoop-3.3.6.tar.gz
+        lxc exec $i -- rm -rf /usr/local/hadoop /usr/local/hadoop-3.3.6
         lxc file push /tmp/apps/hadoop-3.3.6.tar.gz $i/usr/local/hadoop-3.3.6.tar.gz
         lxc exec $i -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
         lxc exec $i -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
@@ -261,16 +264,24 @@ configureSSH(){
 setupUsers(){
     SLAVES=("$@")
     
-    useradd -m -p $(openssl passwd -1 hadoop) -s /bin/bash hadoop
-    echo "hadoop:hadoop" | chpasswd
+    # Create user on Host if not exists
+    if ! id -u hadoop >/dev/null 2>&1; then
+        useradd -m -p $(openssl passwd -1 hadoop) -s /bin/bash hadoop
+        echo "hadoop:hadoop" | chpasswd
+    fi
+
+    # Generate SSH Key for Host hadoop user if not exists
+    if [ ! -f /home/hadoop/.ssh/id_rsa ]; then
+        sudo -u hadoop ssh-keygen -t rsa -P "" -f /home/hadoop/.ssh/id_rsa
+    fi
     
     for i in "${SLAVES[@]}"; do
-        lxc exec $i -- useradd -m -p $(openssl passwd -1 hadoop) -s /bin/bash hadoop
-        lxc exec $i -- bash -c "echo 'hadoop:hadoop' | chpasswd"
+        # Create user on Slave if not exists
+        lxc exec $i -- bash -c "id -u hadoop >/dev/null 2>&1 || (useradd -m -p \$(openssl passwd -1 hadoop) -s /bin/bash hadoop && echo 'hadoop:hadoop' | chpasswd)"
+        
+        # Generate SSH Key for Slave hadoop user
+        lxc exec $i -- bash -c "if [ ! -f /home/hadoop/.ssh/id_rsa ]; then sudo -u hadoop ssh-keygen -t rsa -P '' -f /home/hadoop/.ssh/id_rsa; fi"
     done
-    
-    # Set environment variables
-    executeScripts "${SLAVES[@]}"
 }
 
 setupPasswordlessSSH(){
@@ -281,19 +292,27 @@ setupPasswordlessSSH(){
 
     rm -f /tmp/authorized_keys
     touch /tmp/authorized_keys
-    chmod 600 /tmp/authorized_keys # Changed from 666 to 600
+    chmod 600 /tmp/authorized_keys
 
+    # Gather keys
     cat /home/hadoop/.ssh/id_rsa.pub >> /tmp/authorized_keys
 
     for i in "${SLAVES[@]}"; do
-        lxc file pull $i/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa1.pub
-        cat /tmp/ssh/id_rsa1.pub >> /tmp/authorized_keys
+        lxc file pull $i/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa_$i.pub
+        cat /tmp/ssh/id_rsa_$i.pub >> /tmp/authorized_keys
+        # Push authorized_keys to slave
         lxc file push /tmp/authorized_keys $i/home/hadoop/.ssh/authorized_keys
+        # Fix permissions on slave
+        lxc exec $i -- chown hadoop:hadoop /home/hadoop/.ssh/authorized_keys
+        lxc exec $i -- chmod 600 /home/hadoop/.ssh/authorized_keys
+        lxc exec $i -- chmod 700 /home/hadoop/.ssh
     done
 
+    # Fix permissions on Host
     cp /tmp/authorized_keys /home/hadoop/.ssh/authorized_keys
     chown hadoop:hadoop /home/hadoop/.ssh/authorized_keys
-    chmod 600 /home/hadoop/.ssh/authorized_keys # Ensure strict permissions
+    chmod 600 /home/hadoop/.ssh/authorized_keys
+    chmod 700 /home/hadoop/.ssh
 }
 
 ensureSSH(){
@@ -311,21 +330,37 @@ moveInitialScript(){
     chown hadoop:hadoop /home/hadoop/initial_setup.sh
 }
 
-executeScripts(){
-
+# ---------- CONFIGURE BASHRC FOR HADOOP USER ----------
+configureEnvironment(){
     SLAVES=("$@")
     
-    # Execute source.sh on master
-    bash ./scripts/source.sh
-    
-    # Execute source.sh on all slaves
+    # Define the environment block
+    ENV_BLOCK="
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+export HADOOP_HOME=/usr/local/hadoop
+export PATH=\$PATH:\$HADOOP_HOME/bin:\$HADOOP_HOME/sbin
+export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop
+export HDFS_NAMENODE_USER=hadoop
+export HDFS_DATANODE_USER=hadoop
+export HDFS_SECONDARYNAMENODE_USER=hadoop
+export YARN_RESOURCEMANAGER_USER=hadoop
+export YARN_NODEMANAGER_USER=hadoop
+"
+
+    # Apply to Host
+    if ! grep -q "HADOOP_HOME" /home/hadoop/.bashrc; then
+        echo "$ENV_BLOCK" >> /home/hadoop/.bashrc
+    fi
+
+    # Apply to Slaves
     for i in "${SLAVES[@]}"; do
-        lxc exec $i -- bash /root/source.sh
+        lxc exec $i -- bash -c "if ! grep -q 'HADOOP_HOME' /home/hadoop/.bashrc; then echo \"$ENV_BLOCK\" >> /home/hadoop/.bashrc; fi"
     done
 }
 
 startHadoop(){
     # Run as hadoop user
+    # We use 'bash -l' (login shell) to ensure .bashrc is read
     su - hadoop -c "hdfs namenode -format -force"
     su - hadoop -c "start-dfs.sh"
     su - hadoop -c "start-yarn.sh"
@@ -401,6 +436,6 @@ setupUsers "${NODES[@]}"
 setupPasswordlessSSH "${NODES[@]}"
 ensureSSH "${NODES[@]}"
 moveInitialScript
-executeScripts "${NODES[@]}"
+configureEnvironment "${NODES[@]}"
 startHadoop
 printInstructions
