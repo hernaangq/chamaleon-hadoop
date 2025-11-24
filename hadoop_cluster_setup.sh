@@ -397,5 +397,5 @@ setupPasswordlessSSH "${NODES[@]}"
 ensureSSH "${NODES[@]}"
 moveInitialScript
 executeScripts "${NODES[@]}"
-updateJavaHome "${NODES[@]}"
 startHadoop
+printInstructions
