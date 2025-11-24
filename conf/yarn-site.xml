@@ -14,18 +14,18 @@
     </property>
     <property>
         <name>yarn.nodemanager.resource.memory-mb</name>
-        <value>2048</value>
+        <value>1024</value>
     </property>
     <property>
         <name>yarn.nodemanager.resource.cpu-vcores</name>
-        <value>2</value>
+        <value>1</value>
     </property>
     <property>
         <name>yarn.scheduler.minimum-allocation-mb</name>
-        <value>512</value>
+        <value>256</value>
     </property>
     <property>
         <name>yarn.scheduler.maximum-allocation-mb</name>
-        <value>2048</value>
+        <value>1024</value>
     </property>
 </configuration>
