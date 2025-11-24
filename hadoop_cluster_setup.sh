@@ -173,7 +173,7 @@ generateHadoopConfigFiles() {
 # ---------- FETCHES HADOOP FROM REPO AND MOVES IT TO SLAVES ----------
 getHadoop(){
 
-    SLAVES=("$@")   # all container names passed into the function
+    SLAVES=("$@")
 
     mkdir -p /tmp/apps/ && wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz -O /tmp/apps/hadoop-3.3.6.tar.gz
     sleep 2
@@ -183,6 +183,8 @@ getHadoop(){
     cp /tmp/apps/hadoop-3.3.6.tar.gz /usr/local/hadoop-3.3.6.tar.gz
     tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
     mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+    mkdir -p /usr/local/hadoop/logs
+    chown -R hadoop:hadoop /usr/local/hadoop
     
     #Push to containers
     for i in "${SLAVES[@]}"; do
@@ -190,6 +192,8 @@ getHadoop(){
         lxc file push /tmp/apps/hadoop-3.3.6.tar.gz $i/usr/local/hadoop-3.3.6.tar.gz
         lxc exec $i -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
         lxc exec $i -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+        lxc exec $i -- mkdir -p /usr/local/hadoop/logs
+        lxc exec $i -- chown -R hadoop:hadoop /usr/local/hadoop
     done
 }
 
