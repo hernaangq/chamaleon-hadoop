@@ -315,12 +315,12 @@ executeScripts(){
 
 updateJavaHome(){
 
-    scripts/update_java_home.sh
+    SLAVES=("$@")
 
-    SLAVES=("$@")   # all container names passed into the function
-
+    sed -i "/export JAVA_HOME=/c\export JAVA_HOME=\$(readlink -f /usr/bin/java | sed 's:/bin/java::')" /usr/local/hadoop/etc/hadoop/hadoop-env.sh
+    
     for i in "${SLAVES[@]}"; do
-        lxc exec $i -- bash /root/update_java_home.sh
+        lxc exec $i -- sed -i "/export JAVA_HOME=/c\export JAVA_HOME=\$(readlink -f /usr/bin/java | sed 's:/bin/java::')" /usr/local/hadoop/etc/hadoop/hadoop-env.sh
     done
 }
 
