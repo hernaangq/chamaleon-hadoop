@@ -420,6 +420,7 @@ configureSSH(){
 setupUsers(){
     SLAVES=("$@")
     
+    chmod +x /root/setup-user.sh
     /root/setup-user.sh
     
     for i in "${SLAVES[@]}"; do
