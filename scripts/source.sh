@@ -1,17 +1,22 @@
 #!/bin/bash
 
-sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
-sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
-sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
-sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop
-sudo su -c "export HADOOP_COMMON_HOME=\$HADOOP_HOME" hadoop
-sudo su -c "export HADOOP_HDFS_HOME=\$HADOOP_HOME" hadoop
-sudo su -c "export YARN_HOME=\$HADOOP_HOME" hadoop
-sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin" hadoop
+# Set environment variables for Hadoop user
 
-cat /root/set_env.sh >> /home/hadoop/.bashrc 
-chown -R hadoop:hadoop /home/hadoop/
+cat >> /home/hadoop/.bashrc << 'EOF'
 
+# Hadoop Environment Variables
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export HADOOP_HOME=/usr/local/hadoop
+export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+export HADOOP_MAPRED_HOME=$HADOOP_HOME
+export HADOOP_COMMON_HOME=$HADOOP_HOME
+export HADOOP_HDFS_HOME=$HADOOP_HOME
+export YARN_HOME=$HADOOP_HOME
+export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+export JAVA_HOME=$(readlink -f /usr/bin/java | sed 's:/bin/java::')
+export PATH=$PATH:$JAVA_HOME/bin
 
+EOF
 
-sudo su -c "source /home/hadoop/.bashrc" hadoop
+# Source it immediately for current session
+su - hadoop -c "source /home/hadoop/.bashrc"

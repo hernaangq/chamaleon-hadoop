@@ -255,14 +255,18 @@ configureSSH(){
 
 
 setupUsers(){
-    SLAVES=("$@")   # all container names passed into the function
-
-    chmod +x ./scripts/*.sh
-    scripts/setup_user.sh
-
+    SLAVES=("$@")
+    
+    useradd -m -p $(openssl passwd -1 hadoop) -s /bin/bash hadoop
+    echo "hadoop:hadoop" | chpasswd
+    
     for i in "${SLAVES[@]}"; do
-        lxc exec $i -- bash /root/setup-user.sh
+        lxc exec $i -- useradd -m -p $(openssl passwd -1 hadoop) -s /bin/bash hadoop
+        lxc exec $i -- bash -c "echo 'hadoop:hadoop' | chpasswd"
     done
+    
+    # Set environment variables
+    executeScripts "${SLAVES[@]}"
 }
 
 setupPasswordlessSSH(){
