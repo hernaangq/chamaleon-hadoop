@@ -296,7 +296,7 @@ moveScripts(){
         lxc file push /tmp/scripts/setup-user.sh $i/root/setup-user.sh
         lxc file push /tmp/scripts/set_env.sh $i/root/set_env.sh
         lxc file push /tmp/scripts/source_container.sh $i/root/source.sh
-        lxc file push /tmp/scripts/ssh.shh $i/root/ssh.sh
+        lxc file push /tmp/scripts/ssh.sh $i/root/ssh.sh
         lxc file push /tmp/scripts/update-java-home.sh $i/root/update-java-home.sh
     done
 
