@@ -115,7 +115,7 @@ public class SparkVault implements Serializable {
         sortedRecords.values().mapToPair(recordBytes -> 
             new Tuple2<>(NullWritable.get(), new BytesWritable(recordBytes))
         ).saveAsHadoopFile(outputDir, NullWritable.class, BytesWritable.class, 
-                           org.apache.hadoop.mapred.lib.MultipleOutputs.class); 
+                           org.apache.hadoop.mapred.SequenceFileOutputFormat.class); 
                            // Note: Standard TextOutputFormat corrupts binary. 
                            // Using Hadoop API to write clean bytes is complex in Spark.
                            // For homework simplicity, verify if ObjectFile is allowed or 
