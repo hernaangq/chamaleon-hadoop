@@ -1,7 +1,7 @@
 #!/bin/bash
 set -ex
 
-UBUNTU_VERSION="14.04"
+UBUNTU_VERSION="24.04"
 
 mkdirs(){
 #lxc delete hadoop-master --force
@@ -18,17 +18,18 @@ setNames(){
 }
 
 launchContainers(){
-lxc launch ubuntu:$UBUNTU_VERSION $N1
-lxc launch ubuntu:$UBUNTU_VERSION $N2
-lxc launch ubuntu:$UBUNTU_VERSION $N3
-sleep 10
+  #Tiny Instance -- master
+  lxc launch ubuntu:$UBUNTU_VERSION $N1 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=10GiB
+  #Small Instances -- slaves --test
+  lxc launch ubuntu:$UBUNTU_VERSION $N2 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N3 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  sleep 10
 }
 
 getHostInfo(){
-
-  export HADOOP_MASTER_IP=`lxc list hadoop-master | grep RUNNING | awk '{print $6}'`
-  export HADOOP_SLAVE1_IP=`lxc list hadoop-slave-1 | grep RUNNING | awk '{print $6}'`
-  export HADOOP_SLAVE2_IP=`lxc list hadoop-slave-2 | grep RUNNING | awk '{print $6}'`
+  export HADOOP_MASTER_IP=`lxc list hadoop-master -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE1_IP=`lxc list hadoop-slave-1 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE2_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
   export N1="hadoop-master"
   export N2="hadoop-slave-1"
   export N3="hadoop-slave-2"
@@ -41,33 +42,33 @@ for hosts in hadoop-master hadoop-slave-1 hadoop-slave-2
 do
 lxc exec $hosts -- apt-get update
 lxc exec $hosts -- apt-get upgrade -y
-lxc exec $hosts -- apt-get install openjdk-7-jdk apt-transport-https ca-certificates build-essential apt-utils  ssh openssh-server wget curl -y
+lxc exec $hosts -- apt-get install openjdk-8-jdk apt-transport-https ca-certificates build-essential apt-utils  ssh openssh-server wget curl -y
 done
 
 }
 
 getHadoop(){
-wget  http://apache.claz.org/hadoop/common/hadoop-2.7.3/hadoop-2.7.3.tar.gz -O /tmp/apps/hadoop-2.7.3.tar.gz
+wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz -O /tmp/apps/hadoop-3.3.6.tar.gz
 sleep 2
-lxc file push /tmp/apps/hadoop-2.7.3.tar.gz hadoop-master/usr/local/hadoop-2.7.3.tar.gz
-lxc file push /tmp/apps/hadoop-2.7.3.tar.gz hadoop-slave-1/usr/local/hadoop-2.7.3.tar.gz
-lxc file push /tmp/apps/hadoop-2.7.3.tar.gz hadoop-slave-2/usr/local/hadoop-2.7.3.tar.gz
-lxc exec hadoop-master -- tar -xf /usr/local/hadoop-2.7.3.tar.gz -C /usr/local/
-lxc exec hadoop-slave-1 -- tar -xf /usr/local/hadoop-2.7.3.tar.gz -C /usr/local/
-lxc exec hadoop-slave-2 -- tar -xf /usr/local/hadoop-2.7.3.tar.gz -C /usr/local/
-lxc exec hadoop-master -- mv /usr/local/hadoop-2.7.3 /usr/local/hadoop
-lxc exec hadoop-slave-1 -- mv /usr/local/hadoop-2.7.3 /usr/local/hadoop
-lxc exec hadoop-slave-2 -- mv /usr/local/hadoop-2.7.3 /usr/local/hadoop
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-master/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-1/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-2/usr/local/hadoop-3.3.6.tar.gz
+lxc exec hadoop-master -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+lxc exec hadoop-slave-1 -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+lxc exec hadoop-slave-2 -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+lxc exec hadoop-master -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+lxc exec hadoop-slave-1 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+lxc exec hadoop-slave-2 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
 }
 
 
 createScripts(){
 
 cat > /tmp/scripts/setup-user.sh << EOF
-export JAVA_HOME="/usr/lib/jvm/java-7-openjdk-amd64"
+export JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64"
 export PATH="\$PATH:\$JAVA_HOME/bin"
 useradd -m -s /bin/bash -G sudo hadoop
-echo "hadoop\nhadoop" | passwd hadoop
+echo "hadoop:hadoop" | chpasswd
 sudo su -c "ssh-keygen -q -t rsa -f /home/hadoop/.ssh/id_rsa -N ''" hadoop
 sudo su -c "cat /home/hadoop/.ssh/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys" hadoop
 sudo su -c "mkdir -p /home/hadoop/hdfs/{namenode,datanode}" hadoop
@@ -89,7 +90,7 @@ sudo su -c "ssh -o 'StrictHostKeyChecking no' 0.0.0.0 'echo 1 > /dev/null'" hado
 EOF
 
 cat > /tmp/scripts/set_env.sh << EOF
-JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 HADOOP_HOME=/usr/local/hadoop
 HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop
 HADOOP_MAPRED_HOME=\$HADOOP_HOME
@@ -110,7 +111,7 @@ EOF
 
 
 cat > /tmp/scripts/source.sh << EOF
-sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64" hadoop
+sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
 sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
 sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
 sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop
@@ -128,7 +129,7 @@ sudo su -c "source /home/hadoop/.bashrc" hadoop
 EOF
 
 cat > /tmp/scripts/start-hadoop.sh << EOF
-sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64" hadoop
+sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
 sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
 sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
 sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop
@@ -138,7 +139,23 @@ sudo su -c "export YARN_HOME=\$HADOOP_HOME" hadoop
 sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin" hadoop
 EOF
 
-echo 'sed -i "s/export JAVA_HOME=\${JAVA_HOME}/export JAVA_HOME=\/usr\/lib\/jvm\/java-7-openjdk-amd64/g" /usr/local/hadoop/etc/hadoop/hadoop-env.sh' > /tmp/scripts/update-java-home.sh
+
+# New script to patch the startup files on the master
+cat > /tmp/scripts/fix-master-scripts.sh << EOF
+# Insert 'export JAVA_HOME' as the first line in start-dfs.sh
+sed -i '1s/^/export JAVA_HOME=\/usr\/lib\/jvm\/java-8-openjdk-amd64\n/' /usr/local/hadoop/sbin/start-dfs.sh
+
+# Insert 'export JAVA_HOME' as the first line in start-yarn.sh
+sed -i '1s/^/export JAVA_HOME=\/usr\/lib\/jvm\/java-8-openjdk-amd64\n/' /usr/local/hadoop/sbin/start-yarn.sh
+
+chown hadoop:hadoop /usr/local/hadoop/sbin/start-dfs.sh
+chown hadoop:hadoop /usr/local/hadoop/sbin/start-yarn.sh
+EOF
+
+#echo 'sed -i "s/export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/export JAVA_HOME=\/usr\/lib\/jvm\/java-8-openjdk-amd64/g" /usr/local/hadoop/etc/hadoop/hadoop-env.sh' > /tmp/scripts/update-java-home.sh
+#echo 'chown -R hadoop:hadoop /usr/local/hadoop' >> /tmp/scripts/update-java-home.sh
+
+echo 'sed -i "s@# export JAVA_HOME=.*@export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64@g" /usr/local/hadoop/etc/hadoop/hadoop-env.sh' > /tmp/scripts/update-java-home.sh
 echo 'chown -R hadoop:hadoop /usr/local/hadoop' >> /tmp/scripts/update-java-home.sh
 
 echo 'echo "Executing: hadoop namenode -format: "' > /tmp/scripts/initial_setup.sh
@@ -266,6 +283,7 @@ lxc file push /tmp/scripts/update-java-home.sh hadoop-master/root/update-java-ho
 lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-1/root/update-java-home.sh
 lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-2/root/update-java-home.sh
 
+lxc file push /tmp/scripts/fix-master-scripts.sh hadoop-master/root/fix-master-scripts.sh
 }
 
 moveHadoopConfs(){
@@ -349,7 +367,9 @@ lxc exec hadoop-slave-2 -- chown -R hadoop:hadoop /usr/local/hadoop
 }
 
 startHadoop(){
-lxc exec hadoop-master -- JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 bash /root/start-hadoop.sh
+  lxc exec hadoop-master -- bash /root/fix-master-scripts.sh
+  lxc exec hadoop-master -- bash -c 'JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 chmod +x /root/start-hadoop.sh /root/start-hadoop.sh'
+  #lxc exec hadoop-master -- bash -c 'JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 chmod +x /root/start-hadoop.sh /root/start-hadoop.sh'
 }
 
 printInstructions(){
