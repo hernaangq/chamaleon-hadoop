@@ -1,32 +1,28 @@
-<?xml version="1.0"?>
 <configuration>
     <property>
         <name>yarn.nodemanager.aux-services</name>
         <value>mapreduce_shuffle</value>
     </property>
     <property>
-        <!-- CHANGED: mapreduce.shuffle -> mapreduce_shuffle -->
-        <name>yarn.nodemanager.aux-services.mapreduce_shuffle.class</name>
-        <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+        <name>yarn.nodemanager.env-whitelist</name>
+        <value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_MAPRED_HOME</value>
     </property>
-    <property>
-        <name>yarn.resourcemanager.hostname</name>
-        <value>hadoop-master</value>
-    </property>
+    
+    <!-- INCREASED MEMORY LIMITS -->
     <property>
         <name>yarn.nodemanager.resource.memory-mb</name>
-        <value>1024</value>
-    </property>
-    <property>
-        <name>yarn.nodemanager.resource.cpu-vcores</name>
-        <value>1</value>
-    </property>
-    <property>
-        <name>yarn.scheduler.minimum-allocation-mb</name>
-        <value>256</value>
+        <value>4096</value>
     </property>
     <property>
         <name>yarn.scheduler.maximum-allocation-mb</name>
-        <value>1024</value>
+        <value>4096</value>
+    </property>
+    <property>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>512</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.vmem-check-enabled</name>
+        <value>false</value>
     </property>
 </configuration>

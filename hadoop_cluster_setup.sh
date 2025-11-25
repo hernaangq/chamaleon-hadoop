@@ -171,6 +171,39 @@ generateHadoopConfigFiles() {
     done
 }
 
+# ---------- GENERATE YARN CONFIG WITH MEMORY FIX ----------
+createYarnConfig() {
+    mkdir -p ./conf
+    cat > ./conf/yarn-site.xml << EOF
+<configuration>
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.env-whitelist</name>
+        <value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_MAPRED_HOME</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.resource.memory-mb</name>
+        <value>4096</value>
+    </property>
+    <property>
+        <name>yarn.scheduler.maximum-allocation-mb</name>
+        <value>4096</value>
+    </property>
+    <property>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>512</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.vmem-check-enabled</name>
+        <value>false</value>
+    </property>
+</configuration>
+EOF
+}
+
 # ---------- FETCHES HADOOP FROM REPO AND MOVES IT TO SLAVES ----------
 getHadoop(){
 
@@ -197,6 +230,66 @@ getHadoop(){
         lxc exec $i -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
         lxc exec $i -- mkdir -p /usr/local/hadoop/logs
         lxc exec $i -- chown -R hadoop:hadoop /usr/local/hadoop
+    done
+}
+
+# ---------- INSTALL MAVEN ----------
+installMaven(){
+    SLAVES=("$@")
+    
+    MAVEN_VER="3.9.11"
+    MAVEN_TAR="apache-maven-${MAVEN_VER}-bin.tar.gz"
+    MAVEN_URL="https://dlcdn.apache.org/maven/maven-3/${MAVEN_VER}/binaries/${MAVEN_TAR}"
+
+    if [ ! -f "/tmp/apps/${MAVEN_TAR}" ]; then
+        mkdir -p /tmp/apps/
+        wget "$MAVEN_URL" -O "/tmp/apps/${MAVEN_TAR}"
+    fi
+
+    # Install on Master
+    rm -rf /usr/local/maven
+    tar -xf "/tmp/apps/${MAVEN_TAR}" -C /usr/local/
+    mv "/usr/local/apache-maven-${MAVEN_VER}" /usr/local/maven
+    chown -R hadoop:hadoop /usr/local/maven
+
+    # Install on Slaves
+    for i in "${SLAVES[@]}"; do
+        lxc file push "/tmp/apps/${MAVEN_TAR}" "$i/tmp/${MAVEN_TAR}"
+        lxc exec $i -- tar -xf "/tmp/${MAVEN_TAR}" -C /usr/local/
+        lxc exec $i -- rm -rf /usr/local/maven
+        lxc exec $i -- mv "/usr/local/apache-maven-${MAVEN_VER}" /usr/local/maven
+        lxc exec $i -- chown -R hadoop:hadoop /usr/local/maven
+        lxc exec $i -- rm "/tmp/${MAVEN_TAR}"
+    done
+}
+
+# ---------- INSTALL SPARK ----------
+installSpark(){
+    SLAVES=("$@")
+    
+    SPARK_VER="3.5.7"
+    SPARK_TAR="spark-${SPARK_VER}-bin-hadoop3.tgz"
+    SPARK_URL="https://downloads.apache.org/spark/spark-${SPARK_VER}/${SPARK_TAR}"
+
+    if [ ! -f "/tmp/apps/${SPARK_TAR}" ]; then
+        mkdir -p /tmp/apps/
+        wget "$SPARK_URL" -O "/tmp/apps/${SPARK_TAR}"
+    fi
+
+    # Install on Master (Host)
+    rm -rf /usr/local/spark
+    tar -xf "/tmp/apps/${SPARK_TAR}" -C /usr/local/
+    mv "/usr/local/spark-${SPARK_VER}-bin-hadoop3" /usr/local/spark
+    chown -R hadoop:hadoop /usr/local/spark
+
+    # Install on Slaves
+    for i in "${SLAVES[@]}"; do
+        lxc file push "/tmp/apps/${SPARK_TAR}" "$i/tmp/${SPARK_TAR}"
+        lxc exec $i -- tar -xf "/tmp/${SPARK_TAR}" -C /usr/local/
+        lxc exec $i -- rm -rf /usr/local/spark
+        lxc exec $i -- mv "/usr/local/spark-${SPARK_VER}-bin-hadoop3" /usr/local/spark
+        lxc exec $i -- chown -R hadoop:hadoop /usr/local/spark
+        lxc exec $i -- rm "/tmp/${SPARK_TAR}"
     done
 }
 
@@ -338,7 +431,9 @@ configureEnvironment(){
     ENV_BLOCK="
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 export HADOOP_HOME=/usr/local/hadoop
-export PATH=\$PATH:\$HADOOP_HOME/bin:\$HADOOP_HOME/sbin
+export MAVEN_HOME=/usr/local/maven
+export SPARK_HOME=/usr/local/spark
+export PATH=\$PATH:\$HADOOP_HOME/bin:\$HADOOP_HOME/sbin:\$MAVEN_HOME/bin:\$SPARK_HOME/bin
 export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop
 export HDFS_NAMENODE_USER=hadoop
 export HDFS_DATANODE_USER=hadoop
@@ -436,7 +531,10 @@ getHostInfo "${NODES[@]}"
 generateHostsFile "${NODES[@]}"
 generateSSHPrimingScript "${NODES[@]}"
 generateHadoopConfigFiles "${NODES[@]}"
+createYarnConfig "${NODES[@]}"
 getHadoop "${NODES[@]}"
+installMaven "${NODES[@]}"
+installSpark "${NODES[@]}"
 moveScripts "${NODES[@]}"
 moveHadoopConfs "${NODES[@]}"
 configureSSH "${NODES[@]}"
