@@ -374,6 +374,16 @@ lxc exec hadoop-slave-2 -- bash /root/ssh.sh
 moveInitialScript(){
 lxc file push /tmp/scripts/initial_setup.sh hadoop-master/home/hadoop/initial_setup.sh
 lxc exec hadoop-master -- chown hadoop:hadoop /home/hadoop/initial_setup.sh
+
+echo "" > /tmp/scripts/initial_setup.sh 
+
+lxc file push /tmp/scripts/initial_setup.sh hadoop-slave-1/home/hadoop/initial_setup.sh
+lxc file push /tmp/scripts/initial_setup.sh hadoop-slave-2/home/hadoop/initial_setup.sh
+
+lxc exec hadoop-slave-1 -- chown hadoop:hadoop /home/hadoop/initial_setup.sh
+#lxc exec hadoop-slave-1 -- chmod +x /home/hadoop/initial_setup.sh
+lxc exec hadoop-slave-2 -- chown hadoop:hadoop /home/hadoop/initial_setup.sh
+#lxc exec hadoop-slave-2 -- chmod +x /home/hadoop/initial_setup.sh
 }
 
 updateJavaHome(){
