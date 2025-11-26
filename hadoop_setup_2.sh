@@ -43,12 +43,12 @@ getHostInfo(){
   export HADOOP_MASTER_IP=`lxc list hadoop-master -c 4 --format csv | cut -d ' ' -f 1`
   export HADOOP_SLAVE1_IP=`lxc list hadoop-slave-1 -c 4 --format csv | cut -d ' ' -f 1`
   export HADOOP_SLAVE2_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
-  export HADOOP_SLAVE3_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
-  export HADOOP_SLAVE4_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
-  export HADOOP_SLAVE5_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
-  export HADOOP_SLAVE6_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
-  export HADOOP_SLAVE7_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
-  export HADOOP_SLAVE8_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE3_IP=`lxc list hadoop-slave-3 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE4_IP=`lxc list hadoop-slave-4 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE5_IP=`lxc list hadoop-slave-5 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE6_IP=`lxc list hadoop-slave-6 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE7_IP=`lxc list hadoop-slave-7 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE8_IP=`lxc list hadoop-slave-8 -c 4 --format csv | cut -d ' ' -f 1`
 
   export N1="hadoop-master"
   export N2="hadoop-slave-1"
@@ -88,11 +88,12 @@ lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-7/usr/local/hadoop-3.3.
 lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-8/usr/local/hadoop-3.3.6.tar.gz
 
 lxc exec hadoop-master -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
-lxc exec hadoop-slave-1 -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
-lxc exec hadoop-slave-2 -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
 lxc exec hadoop-master -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
-lxc exec hadoop-slave-1 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
-lxc exec hadoop-slave-2 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+
+for i in {1..8}; do
+  lxc exec hadoop-slave-$i -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+  lxc exec hadoop-slave-$i -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+done
 }
 
 getSpark(){
