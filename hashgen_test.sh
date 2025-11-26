@@ -18,7 +18,7 @@ run_scenario() {
     local current_instance_name="${INSTANCE_NAME}-${instance_id}"
     local data_file_name="data-${dataset_gb}GB.bin"
     local temp_file_name="data-${dataset_gb}GB.tmp"
-    local vault_command="/root/vault -t 32 -i 1 -m ${ram_mib} -k ${k_val} -g ${temp_file_name} -f ${data_file_name}"
+    local vault_command="/root/vaultx -t 32 -i 1 -m ${ram_mib} -k ${k_val} -g ${temp_file_name} -f ${data_file_name}"
 
     echo "Running Scenario: ${dataset_gb}GB Dataset with ${ram_gib}GiB RAM"
 
