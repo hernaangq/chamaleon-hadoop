@@ -18,6 +18,9 @@ if [ -z "$SPARK_HOME" ]; then
     export PATH=$PATH:$SPARK_HOME/bin
 fi
 
+# Fix: Set Hadoop config directory so Spark can communicate with YARN
+export HADOOP_CONF_DIR=~/hadoop/etc/hadoop
+
 # Check for JAR file
 if [ ! -f "$JAR_PATH" ]; then
     echo "❌ Error: JAR file not found at $JAR_PATH"
