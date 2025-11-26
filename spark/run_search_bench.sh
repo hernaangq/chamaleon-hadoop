@@ -21,6 +21,10 @@ if [ -z "$SPARK_HOME" ]; then
     export PATH=$PATH:$SPARK_HOME/bin
 fi
 
+# Fix: Set Hadoop config directory so Spark can communicate with YARN
+export HADOOP_CONF_DIR=~/hadoop/etc/hadoop
+
+
 # Check for JAR file
 if [ ! -f "$JAR_PATH" ]; then
     echo "❌ Error: JAR file not found at $JAR_PATH"
@@ -54,6 +58,7 @@ run_search_test() {
     # The Spark app will also print its own internal timing.
     spark-submit \
         --class $CLASS_NAME \
+        --master $MASTER \
         --deploy-mode client \
         --driver-memory 4G \
         --executor-memory 2G \
