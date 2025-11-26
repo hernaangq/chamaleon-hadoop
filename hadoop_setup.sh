@@ -61,6 +61,36 @@ lxc exec hadoop-slave-1 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
 lxc exec hadoop-slave-2 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
 }
 
+getSpark(){
+  SPARK_VER="3.5.7"
+  SPARK_TAR="spark-${SPARK_VER}-bin-hadoop3.tgz"
+  SPARK_URL="https://downloads.apache.org/spark/spark-${SPARK_VER}/${SPARK_TAR}"
+
+  if [ ! -f "/tmp/apps/${SPARK_TAR}" ]; then
+    mkdir -p /tmp/apps/
+    wget "$SPARK_URL" -O "/tmp/apps/${SPARK_TAR}"
+  fi
+
+  # Install on Master (Host)
+  rm -rf /usr/local/spark
+  tar -xf "/tmp/apps/${SPARK_TAR}" -C /usr/local/
+  mv "/usr/local/spark-${SPARK_VER}-bin-hadoop3" /usr/local/spark
+  # On the host keep root ownership (containers have the 'hadoop' user)
+  chown -R root:root /usr/local/spark
+
+  # Install on Slave 1
+  lxc file push "/tmp/apps/${SPARK_TAR}" hadoop-slave-1/usr/local/${SPARK_TAR}
+  lxc exec hadoop-slave-1 -- tar -xf /usr/local/${SPARK_TAR} -C /usr/local/
+  lxc exec hadoop-slave-1 -- mv /usr/local/spark-${SPARK_VER}-bin-hadoop3 /usr/local/spark
+  lxc exec hadoop-slave-1 -- chown -R hadoop:hadoop /usr/local/spark
+  
+  # Install on Slave 2
+  lxc file push "/tmp/apps/${SPARK_TAR}" hadoop-slave-2/usr/local/${SPARK_TAR}
+  lxc exec hadoop-slave-2 -- tar -xf /usr/local/${SPARK_TAR} -C /usr/local/
+  lxc exec hadoop-slave-2 -- mv /usr/local/spark-${SPARK_VER}-bin-hadoop3 /usr/local/spark
+  lxc exec hadoop-slave-2 -- chown -R hadoop:hadoop /usr/local/spark
+  
+}
 
 createScripts(){
 
@@ -393,6 +423,7 @@ installUpdates
 getHostInfo
 createScripts
 getHadoop
+getSpark
 moveScripts
 generateHadoopConfig
 moveHadoopConfs
