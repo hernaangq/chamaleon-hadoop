@@ -10,6 +10,10 @@ MODE=$1
 JAR_PATH="$(pwd)/target/spark-vault-1.0-SNAPSHOT.jar"
 SPARK_SUBMIT="$HOME/spark/bin/spark-submit"
 
+# Fix: Set Hadoop config directory so Spark can communicate with YARN
+export HADOOP_CONF_DIR=~/hadoop/etc/hadoop
+
+
 if [ -z "$MODE" ]; then
     echo "Usage: ./run_batch.sh <1_small | 1_large | 8_small>"
     exit 1
