@@ -1,0 +1,595 @@
+#!/bin/bash
+set -ex
+
+UBUNTU_VERSION="24.04"
+
+mkdirs(){
+#lxc delete hadoop-master --force
+#lxc delete hadoop-slave-1 --force
+#lxc delete hadoop-slave-2 --force
+rm -rf /tmp/*
+for dir in scripts ssh apps conf; do mkdir -p /tmp/$dir; done
+}
+
+setNames(){
+  export N1="hadoop-master"
+  export N2="hadoop-slave-1"
+  export N3="hadoop-slave-2"
+  export N4="hadoop-slave-3"
+  export N5="hadoop-slave-4"
+  export N6="hadoop-slave-5"
+  export N7="hadoop-slave-6"
+  export N8="hadoop-slave-7"
+  export N9="hadoop-slave-8"
+}
+
+launchContainers(){
+  #Tiny Instance -- master
+  lxc launch ubuntu:$UBUNTU_VERSION $N1 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=10GiB
+  #Small Instances -- slaves --test
+  lxc launch ubuntu:$UBUNTU_VERSION $N2 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N3 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N4 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N5 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N6 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N7 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N8 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  lxc launch ubuntu:$UBUNTU_VERSION $N9 -c limits.cpu="4" -c limits.memory="4GiB" -d root,size=30GiB
+  
+  sleep 10
+}
+
+getHostInfo(){
+  export HADOOP_MASTER_IP=`lxc list hadoop-master -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE1_IP=`lxc list hadoop-slave-1 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE2_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE3_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE4_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE5_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE6_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE7_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+  export HADOOP_SLAVE8_IP=`lxc list hadoop-slave-2 -c 4 --format csv | cut -d ' ' -f 1`
+
+  export N1="hadoop-master"
+  export N2="hadoop-slave-1"
+  export N3="hadoop-slave-2"
+  export N4="hadoop-slave-3"
+  export N5="hadoop-slave-4"
+  export N6="hadoop-slave-5"
+  export N7="hadoop-slave-6"
+  export N8="hadoop-slave-7"
+  export N9="hadoop-slave-8"
+
+  export HDFS_PATH="/home/hadoop/hdfs"
+}
+
+installUpdates(){
+
+for hosts in hadoop-master hadoop-slave-1 hadoop-slave-2 hadoop-slave-3 hadoop-slave-4 hadoop-slave-5 hadoop-slave-6 hadoop-slave-7 hadoop-slave-8
+do
+lxc exec $hosts -- apt-get update
+lxc exec $hosts -- apt-get upgrade -y
+lxc exec $hosts -- apt-get install openjdk-8-jdk apt-transport-https ca-certificates build-essential apt-utils  ssh openssh-server wget curl -y
+done
+
+}
+
+getHadoop(){
+wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz -O /tmp/apps/hadoop-3.3.6.tar.gz
+sleep 2
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-master/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-1/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-2/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-3/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-4/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-5/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-6/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-7/usr/local/hadoop-3.3.6.tar.gz
+lxc file push /tmp/apps/hadoop-3.3.6.tar.gz hadoop-slave-8/usr/local/hadoop-3.3.6.tar.gz
+
+lxc exec hadoop-master -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+lxc exec hadoop-slave-1 -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+lxc exec hadoop-slave-2 -- tar -xf /usr/local/hadoop-3.3.6.tar.gz -C /usr/local/
+lxc exec hadoop-master -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+lxc exec hadoop-slave-1 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+lxc exec hadoop-slave-2 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
+}
+
+
+createScripts(){
+
+cat > /tmp/scripts/setup-user.sh << EOF
+export JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64"
+export PATH="\$PATH:\$JAVA_HOME/bin"
+useradd -m -s /bin/bash -G sudo hadoop
+echo "hadoop:hadoop" | chpasswd
+sudo su -c "ssh-keygen -q -t rsa -f /home/hadoop/.ssh/id_rsa -N ''" hadoop
+sudo su -c "cat /home/hadoop/.ssh/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys" hadoop
+sudo su -c "mkdir -p /home/hadoop/hdfs/{namenode,datanode}" hadoop
+sudo su -c "chown -R hadoop:hadoop /home/hadoop" hadoop
+EOF
+
+cat > /tmp/scripts/hosts << EOF
+127.0.0.1 localhost
+$HADOOP_MASTER_IP hadoop-master
+$HADOOP_SLAVE1_IP hadoop-slave-1
+$HADOOP_SLAVE2_IP hadoop-slave-2
+$HADOOP_SLAVE3_IP hadoop-slave-3
+$HADOOP_SLAVE4_IP hadoop-slave-4
+$HADOOP_SLAVE5_IP hadoop-slave-5
+$HADOOP_SLAVE6_IP hadoop-slave-6
+$HADOOP_SLAVE7_IP hadoop-slave-7
+$HADOOP_SLAVE8_IP hadoop-slave-8
+
+EOF
+
+cat > /tmp/scripts/ssh.sh<< EOF
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-master 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-1 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-2 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-3 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-4 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-5 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-6 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-7 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' hadoop-slave-8 'echo 1 > /dev/null'" hadoop
+sudo su -c "ssh -o 'StrictHostKeyChecking no' 0.0.0.0 'echo 1 > /dev/null'" hadoop
+EOF
+
+cat > /tmp/scripts/set_env.sh << EOF
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+HADOOP_HOME=/usr/local/hadoop
+HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop
+HADOOP_MAPRED_HOME=\$HADOOP_HOME
+HADOOP_COMMON_HOME=\$HADOOP_HOME
+HADOOP_HDFS_HOME=\$HADOOP_HOME
+YARN_HOME=\$HADOOP_HOME
+PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin
+bash /home/hadoop/initial_setup.sh
+EOF
+
+# generate hadoop/slave files
+echo "hadoop-master" > /tmp/conf/masters
+
+cat > /tmp/conf/slaves << EOF
+hadoop-slave-1
+hadoop-slave-2
+hadoop-slave-3
+hadoop-slave-4
+hadoop-slave-5
+hadoop-slave-6
+hadoop-slave-7
+hadoop-slave-8
+EOF
+
+
+cat > /tmp/scripts/source.sh << EOF
+sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
+sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
+sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
+sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export HADOOP_COMMON_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export HADOOP_HDFS_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export YARN_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin" hadoop
+
+cat /root/set_env.sh >> /home/hadoop/.bashrc 
+chown -R hadoop:hadoop /home/hadoop/
+
+
+
+sudo su -c "source /home/hadoop/.bashrc" hadoop
+EOF
+
+cat > /tmp/scripts/start-hadoop.sh << EOF
+sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
+sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
+sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
+sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export HADOOP_COMMON_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export HADOOP_HDFS_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export YARN_HOME=\$HADOOP_HOME" hadoop
+sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin" hadoop
+EOF
+
+
+# New script to patch the startup files on the master
+cat > /tmp/scripts/fix-master-scripts.sh << EOF
+# Insert 'export JAVA_HOME' as the first line in start-dfs.sh
+sed -i '1s/^/export JAVA_HOME=\/usr\/lib\/jvm\/java-8-openjdk-amd64\n/' /usr/local/hadoop/sbin/start-dfs.sh
+
+# Insert 'export JAVA_HOME' as the first line in start-yarn.sh
+sed -i '1s/^/export JAVA_HOME=\/usr\/lib\/jvm\/java-8-openjdk-amd64\n/' /usr/local/hadoop/sbin/start-yarn.sh
+
+chown hadoop:hadoop /usr/local/hadoop/sbin/start-dfs.sh
+chown hadoop:hadoop /usr/local/hadoop/sbin/start-yarn.sh
+EOF
+
+#echo 'sed -i "s/export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/export JAVA_HOME=\/usr\/lib\/jvm\/java-8-openjdk-amd64/g" /usr/local/hadoop/etc/hadoop/hadoop-env.sh' > /tmp/scripts/update-java-home.sh
+#echo 'chown -R hadoop:hadoop /usr/local/hadoop' >> /tmp/scripts/update-java-home.sh
+
+echo 'sed -i "s@# export JAVA_HOME=.*@export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64@g" /usr/local/hadoop/etc/hadoop/hadoop-env.sh' > /tmp/scripts/update-java-home.sh
+echo 'chown -R hadoop:hadoop /usr/local/hadoop' >> /tmp/scripts/update-java-home.sh
+
+echo 'echo "Executing: hadoop namenode -format: "' > /tmp/scripts/initial_setup.sh
+echo 'sleep 2' >> /tmp/scripts/initial_setup.sh
+echo 'hadoop namenode -format' >> /tmp/scripts/initial_setup.sh
+echo 'echo "Executing: start-dfs.sh"' >> /tmp/scripts/initial_setup.sh
+echo 'sleep 2' >> /tmp/scripts/initial_setup.sh
+echo 'start-dfs.sh' >> /tmp/scripts/initial_setup.sh
+echo 'echo "Executing: start-yarn.sh"' >> /tmp/scripts/initial_setup.sh
+echo 'sleep 2' >> /tmp/scripts/initial_setup.sh
+echo 'start-yarn.sh' >> /tmp/scripts/initial_setup.sh
+echo "sed -i 's/bash \/home\/hadoop\/initial_setup.sh//g' /home/hadoop/.bashrc" >> /tmp/scripts/initial_setup.sh
+
+
+}
+
+generateHadoopConfig(){
+  # hadoop configuration
+#echo "<configuration>\n  <property>\n    <name>fs.defaultFS</name>\n     <value>hdfs://$N1:8020/</value>\n  </property>\n</configuration>" > /tmp/conf/core-site.xml
+
+cat >  /tmp/conf/core-site.xml << EOF
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://$N1:8020/</value>
+  </property>
+</configuration>
+EOF
+
+#echo "<configuration>\n  <property>\n    <name>dfs.namenode.name.dir</name>\n    <value>file:$HDFS_PATH/namenode</value>\n  </property>\n  <property>\n    <name>dfs.datanode.data.dir</name>\n    <value>file:$HDFS_PATH/datanode</value>\n  </property>\n  <property>\n    <name>dfs.replication</name>\n    <value>2</value>\n  </property>\n  <property>\n    <name>dfs.block.size</name>\n    <value>134217728</value>\n  </property>\n  <property>\n    <name>dfs.namenode.datanode.registration.ip-hostname-check</name>\n    <value>false</value>\n  </property>\n</configuration>" > /tmp/conf/hdfs-site.xml
+
+cat > /tmp/conf/hdfs-site.xml << EOF
+<configuration>
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value>file:$HDFS_PATH/namenode</value>
+  </property>
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>file:$HDFS_PATH/datanode</value>
+  </property>\n  <property>\n    <name>dfs.replication</name>\n    <value>2</value>\n  </property>\n  <property>\n    <name>dfs.block.size</name>\n    <value>134217728</value>\n  </property>\n  <property>
+    <name>dfs.namenode.datanode.registration.ip-hostname-check</name>
+    <value>false</value>
+  </property>
+</configuration>
+EOF
+
+
+
+cat > /tmp/conf/mapred-site.xml << EOF
+<configuration>
+  <property>
+    <name>mapreduce.framework.name</name>
+    <value>yarn</value>
+  </property>
+  <property>
+    <name>mapreduce.jobhistory.address</name>
+    <value>hadoop-master:10020</value>
+  </property>
+  <property>
+    <name>mapreduce.jobhistory.webapp.address</name>
+    <value>hadoop-master:19888</value>
+  </property>
+  <property>
+    <name>mapred.child.java.opts</name>
+    <value>-Djava.security.egd=file:/dev/../dev/urandom</value>
+  </property>
+</configuration>
+EOF
+
+cat > /tmp/conf/yarn-site.xml << EOF
+<configuration>
+  <property>
+    <name>yarn.resourcemanager.hostname</name>
+    <value>hadoop-master</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.bind-host</name>
+    <value>0.0.0.0</value>
+  </property>
+  <property>
+    <name>yarn.nodemanager.bind-host</name>
+    <value>0.0.0.0</value>
+  </property>
+  <property>
+    <name>yarn.nodemanager.aux-services</name>
+    <value>mapreduce_shuffle</value>
+  </property>
+  <property>
+    <name>yarn.nodemanager.aux-services.mapreduce_shuffle.class</name>
+    <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+  </property>
+  <property>
+    <name>yarn.nodemanager.remote-app-log-dir</name>
+    <value>hdfs://hadoop-master:8020/var/log/hadoop-yarn/apps</value>
+  </property>
+</configuration>
+EOF
+}
+
+moveScripts(){
+lxc file push /tmp/scripts/hosts hadoop-master/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-1/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-2/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-3/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-4/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-5/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-6/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-7/etc/hosts
+lxc file push /tmp/scripts/hosts hadoop-slave-8/etc/hosts
+
+
+lxc file push /tmp/scripts/setup-user.sh hadoop-master/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-1/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-2/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-3/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-4/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-5/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-6/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-7/root/setup-user.sh
+lxc file push /tmp/scripts/setup-user.sh hadoop-slave-8/root/setup-user.sh
+
+
+lxc file push /tmp/scripts/set_env.sh hadoop-master/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-1/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-2/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-3/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-4/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-5/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-6/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-7/root/set_env.sh
+lxc file push /tmp/scripts/set_env.sh hadoop-slave-8/root/set_env.sh
+
+
+lxc file push /tmp/scripts/source.sh hadoop-master/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-1/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-2/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-3/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-4/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-5/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-6/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-7/root/source.sh
+lxc file push /tmp/scripts/source.sh hadoop-slave-8/root/source.sh
+
+
+lxc file push /tmp/scripts/ssh.sh hadoop-master/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-1/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-2/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-3/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-4/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-5/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-6/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-7/root/ssh.sh
+lxc file push /tmp/scripts/ssh.sh hadoop-slave-8/root/ssh.sh
+
+
+lxc file push /tmp/scripts/start-hadoop.sh hadoop-master/root/start-hadoop.sh
+
+lxc file push /tmp/scripts/update-java-home.sh hadoop-master/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-1/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-2/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-3/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-4/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-5/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-6/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-7/root/update-java-home.sh
+lxc file push /tmp/scripts/update-java-home.sh hadoop-slave-8/root/update-java-home.sh
+
+
+lxc file push /tmp/scripts/fix-master-scripts.sh hadoop-master/root/fix-master-scripts.sh
+}
+
+moveHadoopConfs(){
+lxc file push /tmp/conf/masters hadoop-master/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-1/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-2/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-3/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-4/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-5/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-6/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-7/usr/local/hadoop/etc/hadoop/masters
+lxc file push /tmp/conf/masters hadoop-slave-8/usr/local/hadoop/etc/hadoop/masters
+
+
+lxc file push /tmp/conf/slaves hadoop-master/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-1/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-2/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-3/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-4/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-5/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-6/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-7/usr/local/hadoop/etc/hadoop/slaves
+lxc file push /tmp/conf/slaves hadoop-slave-8/usr/local/hadoop/etc/hadoop/slaves
+
+
+lxc file push /tmp/conf/core-site.xml hadoop-master/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-1/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-2/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-3/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-4/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-5/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-6/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-7/usr/local/hadoop/etc/hadoop/core-site.xml
+lxc file push /tmp/conf/core-site.xml hadoop-slave-8/usr/local/hadoop/etc/hadoop/core-site.xml
+
+
+lxc file push /tmp/conf/hdfs-site.xml hadoop-master/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-1/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-2/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-3/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-4/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-5/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-6/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-7/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+lxc file push /tmp/conf/hdfs-site.xml hadoop-slave-8/usr/local/hadoop/etc/hadoop/hdfs-site.xml
+
+
+lxc file push /tmp/conf/mapred-site.xml hadoop-master/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-1/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-2/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-3/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-4/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-5/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-6/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-7/usr/local/hadoop/etc/hadoop/mapred-site.xml
+lxc file push /tmp/conf/mapred-site.xml hadoop-slave-8/usr/local/hadoop/etc/hadoop/mapred-site.xml
+
+
+lxc file push /tmp/conf/yarn-site.xml hadoop-master/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-1/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-2/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-3/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-4/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-5/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-6/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-7/usr/local/hadoop/etc/hadoop/yarn-site.xml
+lxc file push /tmp/conf/yarn-site.xml hadoop-slave-8/usr/local/hadoop/etc/hadoop/yarn-site.xml
+
+}
+
+setupUsers(){
+lxc exec hadoop-master -- bash /root/setup-user.sh
+lxc exec hadoop-slave-1 -- bash /root/setup-user.sh
+lxc exec hadoop-slave-2 -- bash /root/setup-user.sh
+lxc exec hadoop-slave-3 -- bash /root/setup-user.sh
+lxc exec hadoop-slave-4 -- bash /root/setup-user.sh
+lxc exec hadoop-slave-5 -- bash /root/setup-user.sh
+lxc exec hadoop-slave-6 -- bash /root/setup-user.sh
+lxc exec hadoop-slave-7 -- bash /root/setup-user.sh
+lxc exec hadoop-slave-8 -- bash /root/setup-user.sh
+
+}
+
+configureSSH(){
+for ctrs in hadoop-master hadoop-slave-1 hadoop-slave-2  hadoop-slave-3 hadoop-slave-4 hadoop-slave-5 hadoop-slave-6 hadoop-slave-7 hadoop-slave-8; do
+  lxc exec $ctrs -- sed -i "s/PasswordAuthentication no/PasswordAuthentication yes/g" /etc/ssh/sshd_config
+  lxc exec $ctrs -- /etc/init.d/ssh restart ;
+done
+}
+
+setupPasswordlessSSH(){
+lxc file pull hadoop-master/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa1.pub
+lxc file pull hadoop-slave-1/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa2.pub
+lxc file pull hadoop-slave-2/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa3.pub
+lxc file pull hadoop-slave-3/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa4.pub
+lxc file pull hadoop-slave-4/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa5.pub
+lxc file pull hadoop-slave-5/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa6.pub
+lxc file pull hadoop-slave-6/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa7.pub
+lxc file pull hadoop-slave-7/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa8.pub
+lxc file pull hadoop-slave-8/home/hadoop/.ssh/id_rsa.pub /tmp/ssh/id_rsa9.pub
+
+
+
+cat /tmp/ssh/id_rsa1.pub /tmp/ssh/id_rsa2.pub /tmp/ssh/id_rsa3.pub  /tmp/ssh/id_rsa4.pub  /tmp/ssh/id_rsa5.pub  /tmp/ssh/id_rsa6.pub  /tmp/ssh/id_rsa7.pub  /tmp/ssh/id_rsa8.pub  /tmp/ssh/id_rsa9.pub > /tmp/authorized_keys
+
+lxc file push /tmp/authorized_keys hadoop-master/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-1/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-2/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-3/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-4/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-5/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-6/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-7/home/hadoop/.ssh/authorized_keys
+lxc file push /tmp/authorized_keys hadoop-slave-8/home/hadoop/.ssh/authorized_keys
+
+}
+
+ensureSSH(){
+lxc exec hadoop-master -- bash /root/ssh.sh
+lxc exec hadoop-slave-1 -- bash /root/ssh.sh
+lxc exec hadoop-slave-2 -- bash /root/ssh.sh
+lxc exec hadoop-slave-3 -- bash /root/ssh.sh
+lxc exec hadoop-slave-4 -- bash /root/ssh.sh
+lxc exec hadoop-slave-5 -- bash /root/ssh.sh
+lxc exec hadoop-slave-6 -- bash /root/ssh.sh
+lxc exec hadoop-slave-7 -- bash /root/ssh.sh
+lxc exec hadoop-slave-8 -- bash /root/ssh.sh
+
+}
+
+moveInitialScript(){
+lxc file push /tmp/scripts/initial_setup.sh hadoop-master/home/hadoop/initial_setup.sh
+lxc exec hadoop-master -- chown hadoop:hadoop /home/hadoop/initial_setup.sh
+}
+
+updateJavaHome(){
+lxc exec hadoop-master -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-1 -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-2 -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-3 -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-4 -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-5 -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-6 -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-7 -- bash /root/update-java-home.sh
+lxc exec hadoop-slave-8 -- bash /root/update-java-home.sh
+
+}
+
+executeScripts(){
+
+lxc exec hadoop-master -- bash /root/source.sh
+lxc exec hadoop-slave-1 -- bash /root/source.sh
+lxc exec hadoop-slave-2 -- bash /root/source.sh
+lxc exec hadoop-slave-3 -- bash /root/source.sh
+lxc exec hadoop-slave-4 -- bash /root/source.sh
+lxc exec hadoop-slave-5 -- bash /root/source.sh
+lxc exec hadoop-slave-6 -- bash /root/source.sh
+lxc exec hadoop-slave-7 -- bash /root/source.sh
+lxc exec hadoop-slave-8 -- bash /root/source.sh
+
+
+lxc exec hadoop-master -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-1 -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-2 -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-3 -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-4 -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-5 -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-6 -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-7 -- chown -R hadoop:hadoop /usr/local/hadoop
+lxc exec hadoop-slave-8 -- chown -R hadoop:hadoop /usr/local/hadoop
+
+
+}
+
+startHadoop(){
+  lxc exec hadoop-master -- bash /root/fix-master-scripts.sh
+  lxc exec hadoop-master -- bash -c 'JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 chmod +x /root/start-hadoop.sh /root/start-hadoop.sh'
+  #lxc exec hadoop-master -- bash -c 'JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 chmod +x /root/start-hadoop.sh /root/start-hadoop.sh'
+}
+
+printInstructions(){
+echo "Deployment Done"
+echo "---------------"
+echo ""
+echo "1. Access Master:"
+echo " $ lxc exec hadoop-master bash"
+echo ""
+echo "2. Switch user to hadoop:"
+echo " $ su hadoop"
+echo ""
+echo "With the inital login namenode will be formatted and hadoop"
+echo "daemons will be started."
+}
+
+mkdirs
+setNames
+launchContainers
+installUpdates
+getHostInfo
+createScripts
+getHadoop
+moveScripts
+generateHadoopConfig
+moveHadoopConfs
+
+configureSSH
+setupUsers
+setupPasswordlessSSH
+ensureSSH
+moveInitialScript
+executeScripts
+updateJavaHome
+startHadoop
+printInstructions
