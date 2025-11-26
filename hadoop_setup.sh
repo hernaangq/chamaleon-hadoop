@@ -75,19 +75,16 @@ getSpark(){
   lxc file push "/tmp/apps/${SPARK_TAR}" hadoop-master/usr/local/${SPARK_TAR}
   lxc exec hadoop-master -- tar -xf /usr/local/${SPARK_TAR} -C /usr/local/
   lxc exec hadoop-master -- mv /usr/local/spark-${SPARK_VER}-bin-hadoop3 /usr/local/spark
-  lxc exec hadoop-master -- chown -R hadoop:hadoop /usr/local/spark
 
   # Install on Slave 1
   lxc file push "/tmp/apps/${SPARK_TAR}" hadoop-slave-1/usr/local/${SPARK_TAR}
   lxc exec hadoop-slave-1 -- tar -xf /usr/local/${SPARK_TAR} -C /usr/local/
   lxc exec hadoop-slave-1 -- mv /usr/local/spark-${SPARK_VER}-bin-hadoop3 /usr/local/spark
-  lxc exec hadoop-slave-1 -- chown -R hadoop:hadoop /usr/local/spark
   
   # Install on Slave 2
   lxc file push "/tmp/apps/${SPARK_TAR}" hadoop-slave-2/usr/local/${SPARK_TAR}
   lxc exec hadoop-slave-2 -- tar -xf /usr/local/${SPARK_TAR} -C /usr/local/
   lxc exec hadoop-slave-2 -- mv /usr/local/spark-${SPARK_VER}-bin-hadoop3 /usr/local/spark
-  lxc exec hadoop-slave-2 -- chown -R hadoop:hadoop /usr/local/spark
   
 }
 
