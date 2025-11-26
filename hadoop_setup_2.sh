@@ -95,6 +95,33 @@ lxc exec hadoop-slave-1 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
 lxc exec hadoop-slave-2 -- mv /usr/local/hadoop-3.3.6 /usr/local/hadoop
 }
 
+getSpark(){
+  SPARK_VER="3.5.7"
+  SPARK_TAR="spark-${SPARK_VER}-bin-hadoop3.tgz"
+  SPARK_URL="https://downloads.apache.org/spark/spark-${SPARK_VER}/${SPARK_TAR}"
+
+  if [ ! -f "/tmp/apps/${SPARK_TAR}" ]; then
+    mkdir -p /tmp/apps/
+    wget "$SPARK_URL" -O "/tmp/apps/${SPARK_TAR}"
+  fi
+
+  # Install on Master
+  lxc file push "/tmp/apps/${SPARK_TAR}" hadoop-master/usr/local/${SPARK_TAR}
+  lxc exec hadoop-master -- tar -xf /usr/local/${SPARK_TAR} -C /usr/local/
+  lxc exec hadoop-master -- mv /usr/local/spark-${SPARK_VER}-bin-hadoop3 /usr/local/spark
+  lxc exec hadoop-master -- chown -R hadoop:hadoop /usr/local/spark
+
+  # Install on Slaves
+  for i in {1..8}; do
+    lxc file push "/tmp/apps/${SPARK_TAR}" hadoop-slave-$i/usr/local/${SPARK_TAR}
+    lxc exec hadoop-slave-$i -- tar -xf /usr/local/${SPARK_TAR} -C /usr/local/
+    lxc exec hadoop-slave-$i -- mv /usr/local/spark-${SPARK_VER}-bin-hadoop3 /usr/local/spark
+    lxc exec hadoop-slave-$i -- chown -R hadoop:hadoop /usr/local/spark
+  done
+}
+
+
+
 
 createScripts(){
 
@@ -139,12 +166,13 @@ EOF
 cat > /tmp/scripts/set_env.sh << EOF
 export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
 HADOOP_HOME=/usr/local/hadoop
+SPARK_HOME=/usr/local/spark
 HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop
 HADOOP_MAPRED_HOME=\$HADOOP_HOME
 HADOOP_COMMON_HOME=\$HADOOP_HOME
 HADOOP_HDFS_HOME=\$HADOOP_HOME
 YARN_HOME=\$HADOOP_HOME
-PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin
+PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin:\$SPARK_HOME/bin
 bash /home/hadoop/initial_setup.sh
 EOF
 
@@ -166,12 +194,13 @@ EOF
 cat > /tmp/scripts/source.sh << EOF
 sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
 sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
+sudo su -c "export SPARK_HOME=/usr/local/spark" hadoop
 sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
 sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop
 sudo su -c "export HADOOP_COMMON_HOME=\$HADOOP_HOME" hadoop
 sudo su -c "export HADOOP_HDFS_HOME=\$HADOOP_HOME" hadoop
 sudo su -c "export YARN_HOME=\$HADOOP_HOME" hadoop
-sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin" hadoop
+sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin:\$SPARK_HOME/bin" hadoop
 
 cat /root/set_env.sh >> /home/hadoop/.bashrc 
 chown -R hadoop:hadoop /home/hadoop/
@@ -184,12 +213,13 @@ EOF
 cat > /tmp/scripts/start-hadoop.sh << EOF
 sudo su -c "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" hadoop
 sudo su -c "export HADOOP_HOME=/usr/local/hadoop" hadoop
+sudo su -c "export SPARK_HOME=/usr/local/spark" hadoop
 sudo su -c "export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop " hadoop
 sudo su -c "export HADOOP_MAPRED_HOME=\$HADOOP_HOME" hadoop
 sudo su -c "export HADOOP_COMMON_HOME=\$HADOOP_HOME" hadoop
 sudo su -c "export HADOOP_HDFS_HOME=\$HADOOP_HOME" hadoop
 sudo su -c "export YARN_HOME=\$HADOOP_HOME" hadoop
-sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin" hadoop
+sudo su -c "export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_HOME/sbin:\$HADOOP_HOME/bin:\$SPARK_HOME/bin" hadoop
 EOF
 
 
@@ -580,6 +610,7 @@ installUpdates
 getHostInfo
 createScripts
 getHadoop
+getSpark
 moveScripts
 generateHadoopConfig
 moveHadoopConfs
