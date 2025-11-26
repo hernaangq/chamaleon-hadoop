@@ -2,7 +2,7 @@
 set -ex
 
 INSTANCE_NAME="vault-instance"
-VAULT_BINARY="./vaultx_linux_x86"
+VAULT_BINARY="./vaultx"
 
 run_scenario() {
     local dataset_gb=$1
@@ -18,7 +18,7 @@ run_scenario() {
     local current_instance_name="${INSTANCE_NAME}-${instance_id}"
     local data_file_name="data-${dataset_gb}GB.bin"
     local temp_file_name="data-${dataset_gb}GB.tmp"
-    local vault_command="/root/vaultx_linux_x86 -t 32 -i 1 -m ${ram_mib} -k ${k_val} -g ${temp_file_name} -f ${data_file_name}"
+    local vault_command="/root/vault -t 32 -i 1 -m ${ram_mib} -k ${k_val} -g ${temp_file_name} -f ${data_file_name}"
 
     echo "Running Scenario: ${dataset_gb}GB Dataset with ${ram_gib}GiB RAM"
 
@@ -30,7 +30,7 @@ run_scenario() {
         apt-get update &&
         apt-get upgrade -y
     "
-    lxc file push ${VAULT_BINARY} ${current_instance_name}/root/vaultx_linux_x86
+    lxc file push ${VAULT_BINARY} ${current_instance_name}/root/vaultx
 
     echo "Ejecutando vaultx en la instancia ${current_instance_name}"
     lxc exec ${current_instance_name} -- bash -c "${vault_command}"
@@ -47,10 +47,12 @@ run_scenario() {
     echo "Instance ${current_instance_name} deleted"
 }
 
+cd vault
+make
 # Parameters: dataset_gb, ram_mib (vault), instance_id, k-value, cpu_cores, disk_size, vm_ram
 
 # Scenario 1: 16GB dataset, 2GB RAM - small
-#run_scenario 16 2048 1 30 4 30 4 
+run_scenario 16 2048 1 30 4 30 4 
 # Scenario 2: 32GB dataset, 2GB RAM - small
 #run_scenario 32 2048 2 31 4 30 4
 # Scenario 3: 16GB dataset, 16GB RAM -large
