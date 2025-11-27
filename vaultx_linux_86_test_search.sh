@@ -1,3 +1,4 @@
+set -ex
 #Test automation - search
 #vaultx_linux_86
 
