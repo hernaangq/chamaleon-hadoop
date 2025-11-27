@@ -34,9 +34,6 @@ run_scenario() {
 
     echo "Ejecutando vaultx en la instancia ${current_instance_name}"
     lxc exec ${current_instance_name} -- bash -c "${vault_command}"
-    
-    # Puedes añadir aquí la lógica para recuperar los archivos de resultados si es necesario.
-    # Por ejemplo: lxc file pull ${current_instance_name}/root/${data_file_name} ./
 
     echo "Execution complete for ${current_instance_name}"
 
@@ -50,9 +47,9 @@ run_scenario() {
 # Parameters: dataset_gb, ram_mib (vault), instance_id, k-value, cpu_cores, disk_size, vm_ram
 
 # Scenario 1: 16GB dataset, 2GB RAM - small
-#run_scenario 16 2048 1 30 4 30 4 
+run_scenario 16 2048 1 30 4 30 4 
 # Scenario 2: 32GB dataset, 2GB RAM - small
-#run_scenario 32 2048 2 31 4 30 4
+run_scenario 32 2048 2 31 4 30 4
 # Scenario 3: 16GB dataset, 16GB RAM -large
 run_scenario 16 16384 3 30 32 240 32
 # Scenario 4: 32GB dataset, 16GB RAM -large

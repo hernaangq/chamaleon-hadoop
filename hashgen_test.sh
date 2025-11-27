@@ -34,9 +34,6 @@ run_scenario() {
 
     echo "Ejecutando vaultx en la instancia ${current_instance_name}"
     lxc exec ${current_instance_name} -- bash -c "${vault_command}"
-    
-    # Puedes añadir aquí la lógica para recuperar los archivos de resultados si es necesario.
-    # Por ejemplo: lxc file pull ${current_instance_name}/root/${data_file_name} ./
 
     echo "Execution complete for ${current_instance_name}"
 
