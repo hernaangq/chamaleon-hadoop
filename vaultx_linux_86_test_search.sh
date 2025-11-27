@@ -8,6 +8,12 @@ set -ex
 mkdir -p results
 filename="./results/results.csv"
 
+#create or replace file
+touch $filename
+
+#Empty preexisting file
+> $filename
+
 ./vaultx_linux_x86 -t 32 -i 1 -m 2048 -k 30 -g data-16GB.tmp -f data-16GB.bin
 
 testType="hashSearch"
